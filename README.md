@@ -406,15 +406,6 @@ The implementation includes:
 
 Additional production hardening, including comprehensive IP-range blocking and network-level egress restrictions, should be considered before exposing the service publicly.
 
-## Future Improvements
-
-- Production deployment and monitoring.
-- Authentication and authorization for webhook ingestion.
-- Webhook delivery status and history API.
-- Metrics and observability.
-- Dead-letter queue management.
-- Improved operational recovery and alerting.
-
 ## License
 
 This project is developed as a software engineering assignment and learning project.
