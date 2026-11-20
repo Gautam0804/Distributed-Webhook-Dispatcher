@@ -22,7 +22,7 @@ const webhookWorker = new Worker(
 
     const startTime = Date.now();
 
-    // Will remain null if the HTTP request never starts.
+    // Remains null if the HTTP request never starts.
     let requestStartedAt = null;
 
     console.log("--------------------------------");
@@ -38,14 +38,14 @@ const webhookWorker = new Worker(
       const safeDestination =
         await resolveSafeDestination(destinationUrl);
 
-      // 3. Capture the exact HTTP request start time.
+      // 3. Capture exact HTTP request start time.
       requestStartedAt = new Date();
 
       console.log(
         `HTTP request started at: ${requestStartedAt.toISOString()}`
       );
 
-      // 4. Send webhook to the validated destination.
+      // 4. Send webhook to validated destination.
       const response = await axios.post(
         safeDestination.url.href,
         payload,
@@ -110,7 +110,7 @@ const webhookWorker = new Worker(
       const duration = Date.now() - startTime;
       const statusCode = error.response?.status;
 
-      // 6. Identify security errors using the custom error class.
+      // 6. Identify security errors.
       const isSecurityError =
         error instanceof UnsafeDestinationError;
 
@@ -188,6 +188,10 @@ const webhookWorker = new Worker(
 
   {
     connection: redisConnection,
+
+    // Must match the Queue prefix.
+    prefix: "webhook-dispatcher",
+
     concurrency: 15,
   }
 );

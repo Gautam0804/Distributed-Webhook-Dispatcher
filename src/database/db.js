@@ -1,3 +1,4 @@
+
 import "dotenv/config";
 import pg from "pg";
 
@@ -9,9 +10,16 @@ export const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
+
+  // Use SSL only when explicitly enabled.
+  ssl:
+    process.env.DB_SSL === "true"
+      ? { rejectUnauthorized: true }
+      : false,
 });
 
 pool.on("error", (error) => {
