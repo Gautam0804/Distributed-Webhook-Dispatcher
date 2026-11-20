@@ -61,8 +61,8 @@ function sleep(ms) {
 export async function waitForDomainSlot(destinationUrl) {
   const domain = new URL(destinationUrl).hostname.toLowerCase();
 
-  // Separate namespace from the previous GCRA implementation.
-  const redisKey = `rate-limit:webhook:sliding:${domain}`;
+  // Dedicated namespace for Distributed Webhook Dispatcher.
+  const redisKey = `webhook-dispatcher:rate-limit:sliding:${domain}`;
 
   // Unique identifier for this reservation.
   const token = randomUUID();

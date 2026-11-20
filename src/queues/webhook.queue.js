@@ -5,6 +5,9 @@ import { redisConnection } from "../config/redis.js";
 export const webhookQueue = new Queue("webhook-delivery", {
   connection: redisConnection,
 
+  // Isolate this queue from other projects sharing Redis
+  prefix: "webhook-dispatcher",
+
   defaultJobOptions: {
     // 1 initial attempt + 3 retries
     attempts: 4,
