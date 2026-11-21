@@ -38,10 +38,7 @@ async function startPublisher() {
         );
       }
     } catch (error) {
-      console.error(
-        "Outbox publisher error:",
-        error.message
-      );
+      console.error("Outbox publisher error:", error.message);
     }
 
     if (!isShuttingDown) {
@@ -72,12 +69,10 @@ async function shutdown(signal) {
     let shutdownFailed = false;
 
     try {
-      // Stop the publisher loop.
       if (publisherPromise) {
         await publisherPromise;
       }
 
-      // Release PostgreSQL advisory lock.
       if (lockAcquired && !lockReleased && lockClient) {
         const result = await lockClient.query(
           "SELECT pg_advisory_unlock($1) AS released",
@@ -101,7 +96,6 @@ async function shutdown(signal) {
       );
     }
 
-    // Close BullMQ queue.
     try {
       await webhookQueue.close();
       console.log("BullMQ queue closed.");
@@ -110,7 +104,6 @@ async function shutdown(signal) {
       console.error("BullMQ shutdown failed:", error);
     }
 
-    // Close PostgreSQL pool.
     try {
       await pool.end();
       console.log("PostgreSQL pool closed.");
@@ -119,7 +112,6 @@ async function shutdown(signal) {
       console.error("PostgreSQL shutdown failed:", error);
     }
 
-    // Close Redis.
     try {
       if (redisConnection.status !== "end") {
         await redisConnection.quit();
@@ -132,9 +124,7 @@ async function shutdown(signal) {
     }
 
     if (shutdownFailed) {
-      console.error(
-        "Publisher shutdown completed with errors."
-      );
+      console.error("Publisher shutdown completed with errors.");
       process.exitCode = 1;
     } else {
       console.log("Publisher shut down gracefully.");
@@ -151,7 +141,7 @@ async function start() {
     await pool.query("SELECT 1");
     console.log("PostgreSQL connected.");
 
-    // 2. Initialize database tables and migrations.
+    // 2. Initialize database.
     await initDatabase();
     console.log("Database initialized.");
 
@@ -159,35 +149,7 @@ async function start() {
     await redisConnection.ping();
     console.log("Redis connected.");
 
-    // 4. Acquire a dedicated PostgreSQL connection.
-    lockClient = await pool.connect();
-
-    // 5. Acquire advisory lock.
-    const result = await lockClient.query(
-      "SELECT pg_try_advisory_lock($1) AS acquired",
-      [LOCK_ID]
-    );
-
-    lockAcquired = result.rows[0].acquired;
-
-    if (!lockAcquired) {
-      console.error(
-        "Another publisher is already running."
-      );
-
-      releaseLockClient();
-
-      await webhookQueue.close();
-      await pool.end();
-      await redisConnection.quit();
-
-      process.exitCode = 1;
-      return;
-    }
-
-    console.log("Publisher advisory lock acquired.");
-
-    // 6. Register graceful shutdown handlers.
+    // 4. Register shutdown handlers before waiting for the lock.
     process.once("SIGINT", () => {
       void shutdown("SIGINT");
     });
@@ -196,11 +158,38 @@ async function start() {
       void shutdown("SIGTERM");
     });
 
+    // 5. Acquire a dedicated PostgreSQL connection.
+    lockClient = await pool.connect();
+
+    // 6. Wait until the advisory lock becomes available.
+    while (!isShuttingDown && !lockAcquired) {
+      const result = await lockClient.query(
+        "SELECT pg_try_advisory_lock($1) AS acquired",
+        [LOCK_ID]
+      );
+
+      lockAcquired = result.rows[0].acquired;
+
+      if (!lockAcquired) {
+        console.log(
+          "Another publisher is running. Retrying in 2 seconds..."
+        );
+
+        await sleep(POLL_INTERVAL_MS);
+      }
+    }
+
+    // If shutdown was requested while waiting, exit cleanly.
+    if (isShuttingDown) {
+      return;
+    }
+
+    console.log("Publisher advisory lock acquired.");
+
     // 7. Start publisher loop.
     publisherPromise = startPublisher();
 
     await publisherPromise;
-
   } catch (error) {
     console.error("Publisher startup failed:", error);
 
@@ -232,5 +221,4 @@ async function start() {
   }
 }
 
-// Start application.
 await start();
