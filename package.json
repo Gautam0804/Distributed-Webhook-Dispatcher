@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "worker": "nodemon src/worker.js",
-    "start": "node src/server.js",
+    "start": "node src/index.js",
     "start:worker": "node src/worker.js",
     "publisher": "node src/outbox-publisher.js"
   },
